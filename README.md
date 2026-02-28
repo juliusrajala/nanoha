@@ -28,4 +28,6 @@ Prompt templates live in `src/prompts/index.ts`. Update the system/planning/summ
 
 This project was created using `bun init` in bun v1.2.22. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
 
+## License
+
 Copyright © 2026 Julius Rajala. Licensed under the MIT License.

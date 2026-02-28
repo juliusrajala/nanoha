@@ -32,7 +32,7 @@ Rules:
 }
 
 export function buildSummaryPrompt() {
-  return `You are summarizing what a coding agent just did for the user. Be concise and direct. Mention what was changed and the final outcome. If the agent failed, explain why.`;
+  return `You are summarizing what a coding agent just did for the user. Use the agent's message history to answer the user's task. Be concise and direct. Mention what was changed and the final outcome. If the agent failed, explain why.`;
 }
 
 export function buildUserPrompt(): string {

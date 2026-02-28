@@ -15,11 +15,12 @@ export function isExcluded(filePath: string): boolean {
   return excludeGlobs.some((g) => g.match(filePath));
 }
 
-export async function getFileTree(cwd: string): Promise<string> {
+export async function getDirectoryContext(): Promise<string> {
+  const cwd = process.cwd();
   const glob = new Glob("**/*");
   const files: string[] = [];
   for await (const file of glob.scan({ cwd })) {
     if (!isExcluded(file)) files.push(file);
   }
-  return files.sort().join("\n");
+  return `Active directory: ${cwd}\n Files:\n`.concat(files.sort().join("\n"));
 }

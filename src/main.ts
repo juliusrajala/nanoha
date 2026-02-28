@@ -1,24 +1,34 @@
 import { generateText } from "./llm/aiSdk";
 import { executeLoop } from "./core";
-import { getFileTree } from "./config";
+import { getDirectoryContext } from "./config";
 import { buildPlanningPrompt, buildSummaryPrompt } from "./prompts";
 import { AgentState } from "./state";
-import { createEditFileTool, createListFilesTool, createReadFileTool, createUpdateStateTool } from "./tools";
+import {
+  createEditFileTool,
+  createListFilesTool,
+  createReadFileTool,
+  createUpdateStateTool,
+} from "./tools";
 
 function destructurePlan(response: string): Array<string> {
   return response
     .split("\n")
-    .map((line) => line.trim().replace(/^[-*•\d.)\s]+/, "").trim())
+    .map((line) =>
+      line
+        .trim()
+        .replace(/^[-*•\d.)\s]+/, "")
+        .trim(),
+    )
     .filter(Boolean);
 }
 
-async function planSubtasks(prompt: string): Promise<string[]> {
+export async function planSubtasks(prompt: string): Promise<string[]> {
   // Let's just generate these as text since it's about as fast as we can be.
   const result = await generateText({
     system: buildPlanningPrompt(),
     prompt,
   });
-  const subtasks = destructurePlan(result.text)
+  const subtasks = destructurePlan(result.text);
 
   return subtasks;
 }
@@ -32,7 +42,7 @@ async function summarize(prompt: string): Promise<string> {
       ...messages,
       {
         role: "user",
-        content: `The user's original request was: "${prompt}"\nFinal status: ${status}\nSubtasks completed: ${subtasks.filter((t) => t.completed).length}/${subtasks.length}\n\nSummarize what was done.`,
+        content: `The user's original request was: "${prompt}"\nFinal status: ${status}\nSubtasks completed: ${subtasks.filter((t) => t.completed).length}/${subtasks.length}\n\nUsing the agent message history above, summarize what was done and answer the user's task.`,
       },
     ],
   });
@@ -40,26 +50,32 @@ async function summarize(prompt: string): Promise<string> {
   return result.text;
 }
 
-export async function runAgent(prompt: string) {
-  const cwd = process.cwd();
-  const fileTree = await getFileTree(cwd);
-  const projectContext = `## Environment\nWorking directory: ${cwd}\n\n## Project files\n${fileTree}`;
+interface Options {
+  plan: boolean;
+};
+
+export async function runAgent(prompt: string, options: Partial<Options> = {}) {
+  const { plan } = options;
+  const directoryContext = await getDirectoryContext();
 
   const subtasks = await planSubtasks(prompt);
   AgentState.create(subtasks);
 
-  const tools = {
+  const editTools = {
+    editFile: createEditFileTool(),
+  };
+
+  const readTools = {
     updateState: createUpdateStateTool(),
     readFile: createReadFileTool(),
-    editFile: createEditFileTool(),
     listFiles: createListFilesTool(),
   };
 
   await executeLoop({
     plan: prompt,
     subtasks,
-    tools,
-    projectContext,
+    tools: plan ? readTools : { ...readTools, ...editTools },
+    projectContext: directoryContext,
   });
 
   const summary = await summarize(prompt);
