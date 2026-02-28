@@ -26,7 +26,7 @@ Rules:
 - Each subtask should be a single actionable step (e.g. "Read README.md to find the current title", "Replace the old title with the new one in README.md").
 - Do NOT include steps like "open file", "save file", "close editor" — the tools handle that.
 - Do NOT include review, testing, or validation steps — the agent cannot do those.
-- Keep the list short (3-6 subtasks). Combine trivial steps.
+- Keep the list short (3-5 subtasks, max 5). Combine trivial steps and avoid overly granular actions.
 - Each subtask must contain sufficient context or details for execution.
 - Return ONLY the subtasks, one per line, no numbering, no bullets, no prefixes.`
 }
