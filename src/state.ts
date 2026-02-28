@@ -1,3 +1,6 @@
+import type { ModelMessage } from "ai";
+import z from "zod";
+
 export interface Subtask {
   id: string;
   label: string;
@@ -10,19 +13,27 @@ export interface State {
   subtasks: Array<Subtask>;
 }
 
+export const StateUpdateSchema = z.union([
+  z.object({ type: z.literal('state'), to: z.enum(['failed', 'completed', 'needs-input', 'in-progress']) }),
+  z.object({ type: z.literal('subtask'), id: z.string() })
+])
+
 type StateUpdate =
-  | { type: "state"; to: "failed" | "completed" | "needs-input" }
+  | { type: "state"; to: "failed" | "completed" | "needs-input" | "in-progress" }
   | { type: "subtask"; id: string };
 
 export class AgentState {
+  private static instance: AgentState | null = null;
   private state: State;
+
+  protected messages: ModelMessage[] = []
 
   private constructor(state: State) {
     this.state = state;
   }
 
-  static create(subtasks: Array<string>): AgentState {
-    return new AgentState({
+  static create(subtasks: Array<string>): void {
+    AgentState.instance = new AgentState({
       status: "in-progress",
       subtasks: subtasks.map((label, i) => ({
         id: i.toString(),
@@ -33,25 +44,39 @@ export class AgentState {
     });
   }
 
-  get current(): Readonly<State> {
-    return this.state;
+  private static get self(): AgentState {
+    if (!AgentState.instance) {
+      throw new Error("AgentState not initialized. Call AgentState.create() first.");
+    }
+    return AgentState.instance;
   }
 
-  get isInProgress(): boolean {
-    if (this.state.subtasks.every((t) => t.completed)) {
+  static get current(): Readonly<State & { messages: ModelMessage[] }> {
+    return {... AgentState.self.state, messages: AgentState.self.messages};
+  }
+
+  static get isInProgress(): boolean {
+    const { state } = AgentState.self;
+    if (state.subtasks.every((t) => t.completed)) {
       return false;
     }
-    return this.state.status === "in-progress";
+    return state.status === "in-progress";
   }
 
-  apply(updates: Array<StateUpdate>): void {
+  static pushHistory(newMessages: Array<ModelMessage>) {
+    const self = AgentState.self;
+    self.messages.push(...newMessages)
+  }
+
+  static apply(updates: Array<StateUpdate>): void {
+    const self = AgentState.self;
     for (const update of updates) {
       switch (update.type) {
         case "state":
-          this.state = { ...this.state, status: update.to };
+          self.state = { ...self.state, status: update.to };
           break;
         case "subtask": {
-          const subtask = this.state.subtasks.find((t) => t.id === update.id);
+          const subtask = self.state.subtasks.find((t) => t.id === update.id);
           if (subtask) {
             subtask.completed = true;
           }

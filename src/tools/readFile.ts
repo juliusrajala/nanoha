@@ -3,7 +3,7 @@ import z from "zod";
 
 export function createReadFileTool() {
   return tool({
-    description: "Read the current contents of playground.md.",
+    description: "Read the current contents of the given file.",
     inputSchema: z.object({
       filePath: z.string().describe("Exact path to file"),
     }),

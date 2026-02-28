@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import z from "zod";
-import type { AgentState } from "../state";
+import { AgentState } from "../state";
 
 const updateStateDescription = `Update the status of a subtask or the full state
 
@@ -9,7 +9,7 @@ const updateStateDescription = `Update the status of a subtask or the full state
 - You mark subtasks as completed by providing the id of a specific subtask in the updates array according to the schema.
 `;
 
-export function createUpdateStateTool(agentState: AgentState) {
+export function createUpdateStateTool() {
   return tool({
     description: updateStateDescription,
     inputSchema: z.object({
@@ -31,8 +31,8 @@ export function createUpdateStateTool(agentState: AgentState) {
         ),
     }),
     execute: async ({ updates }) => {
-      agentState.apply(updates);
-      return JSON.stringify(agentState.current);
+      AgentState.apply(updates);
+      return JSON.stringify(AgentState.current);
     },
   });
 }
