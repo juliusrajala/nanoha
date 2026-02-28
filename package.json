@@ -1,0 +1,17 @@
+{
+  "name": "nanoha",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "^3.0.36",
+    "ai": "^6.0.104",
+    "zod": "^4.3.6"
+  }
+}
