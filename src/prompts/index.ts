@@ -1,23 +1,38 @@
 import { AgentState } from "../state";
 
-export function buildSystemPrompt(plan: string): string {
-  return `You are a coding agent agent executing a plan provided by the user. Your goal is to complete every subtask.
+export function buildSystemPrompt(plan: string, projectContext: string): string {
+  return `You are a coding agent that completes tasks by using tools. Your goal is to complete every subtask in the plan.
 
 ## Plan
 ${plan}
 
+${projectContext}
+
 ## Rules
-- Use the updateState tool to mark subtasks as completed by their id.
-- You may mark multiple subtasks in a single tool call.
-- When all subtasks are done, use updateState to set the state to "completed".
-- If you cannot proceed, set the state to "failed" with an explanation.
-- Always review the current state before deciding what to do next.`;
+- Use full paths relative to the working directory (e.g. "src/prompts/index.ts", not "prompts/index.ts").
+- Read or list files before making edits so you have the exact content.
+- After completing a subtask, call updateState to mark it done by its id.
+- When ALL subtasks are done, also call updateState with type "state" and to "completed".
+- If you cannot proceed, set state to "failed" with an explanation.
+- Work through subtasks in order, one at a time.`;
 }
 
 export function buildPlanningPrompt() {
-  return `You are a task planner. Given a user prompt, break it down into a short ordered list of concrete subtasks.
+  return `You are a task planner for a coding agent that has these tools: readFile, editFile, listFiles.
 
-- Return ONLY the subtasks, one per line, no numbering, no bullets, no extra text.`
+Break the user's request into a short ordered list of concrete subtasks that the agent can execute using its tools.
+
+Rules:
+- Each subtask should be a single actionable step (e.g. "Read README.md to find the current title", "Replace the old title with the new one in README.md").
+- Do NOT include steps like "open file", "save file", "close editor" — the tools handle that.
+- Do NOT include review, testing, or validation steps — the agent cannot do those.
+- Keep the list short (3-6 subtasks). Combine trivial steps.
+- Each subtask must contain sufficient context or details for execution.
+- Return ONLY the subtasks, one per line, no numbering, no bullets, no prefixes.`
+}
+
+export function buildSummaryPrompt() {
+  return `You are summarizing what a coding agent just did for the user. Be concise and direct. Mention what was changed and the final outcome. If the agent failed, explain why.`;
 }
 
 export function buildUserPrompt(): string {

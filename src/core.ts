@@ -8,6 +8,7 @@ interface AgentParams {
   plan: string;
   tools: Record<string, Tool>;
   subtasks: Array<string>;
+  projectContext: string;
 }
 
 export async function executeLoop(params: AgentParams) {
@@ -24,7 +25,7 @@ export async function executeLoop(params: AgentParams) {
     logTasks(subtasks)
 
     const result = await generateText({
-      system: buildSystemPrompt(params.plan),
+      system: buildSystemPrompt(params.plan, params.projectContext),
       messages,
       tools: params.tools,
       stopWhen: stepCountIs(5),

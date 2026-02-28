@@ -2,7 +2,7 @@ import { generateText as _generateText, streamText as _streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 
 const openai = createOpenAI();
-const model = openai("gpt-5.1-codex-mini");
+const model = openai("gpt-4o");
 
 export const generateText: OmitModelParam<typeof _generateText> = (params) =>
   _generateText({ ...params, model } as any);
