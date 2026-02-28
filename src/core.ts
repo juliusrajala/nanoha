@@ -5,6 +5,7 @@ import {
   createUpdateStateTool,
   createEditFileTool,
   createReadFileTool,
+  createListFilesTool,
 } from "./tools";
 
 interface AgentParams {
@@ -46,6 +47,7 @@ export async function executeLoop(params: AgentParams) {
     updateState: createUpdateStateTool(agentState),
     readFile: createReadFileTool(),
     editFile: createEditFileTool(),
+    listFiles: createListFilesTool(),
   };
   const messages: Array<ModelMessage> = [];
   let iteration = 0;
