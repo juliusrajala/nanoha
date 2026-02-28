@@ -1,7 +1,7 @@
 # Playground
 
-Ths is a tset of the nanoha agnet harness.
+This is a test of the nanoha agent harness.
 
-It shuold be able to fixx typos in this file.
+It should be able to fix typos in this file.
 
-The quik brown fox jumsp over the layz dog.
+The quick brown fox jumps over the lazy dog.

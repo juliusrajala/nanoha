@@ -1,20 +1,35 @@
+import { generateText } from "./llm/aiSdk";
 import { executeLoop } from "./core";
 
-export async function runAgent() {
-  const plan =
-    "Fix the typos in playground.md. Read the file first, then fix one typo per subtask " +
-    "using the editFile tool, then mark that subtask as completed before moving to the next.";
+async function planSubtasks(prompt: string): Promise<string[]> {
+  console.log("[planner] Generating subtasks from prompt...");
 
-  const subtasks = [
-    'Fix the title: "Playgruond" should be "Playground"',
-    'Fix line: "Ths is a tset of the nanoha agnet harness." should be "This is a test of the nanoha agent harness."',
-    'Fix line: "It shuold be able to fixx typos in this file." should be "It should be able to fix typos in this file."',
-    'Fix line: "The quik brown fox jumsp over the layz dog." should be "The quick brown fox jumps over the lazy dog."',
-  ];
+  const result = await generateText({
+    system:
+      "You are a task planner. Given a user prompt, break it down into a short ordered list of concrete subtasks. " +
+      "Return ONLY the subtasks, one per line, no numbering, no bullets, no extra text.",
+    prompt,
+  });
+
+  const subtasks = result.text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  console.log(`[planner] Generated ${subtasks.length} subtasks:`);
+  for (const task of subtasks) {
+    console.log(`[planner]   - ${task}`);
+  }
+
+  return subtasks;
+}
+
+export async function runAgent(prompt: string) {
+  const subtasks = await planSubtasks(prompt);
 
   return executeLoop({
+    plan: prompt,
     subtasks,
-    plan,
     tools: [],
   });
 }
