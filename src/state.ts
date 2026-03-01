@@ -8,39 +8,44 @@ export interface Subtask {
   completed: boolean;
 }
 
-const stateStatus = z.enum(['draft', 'in-progress', 'failed', 'completed', 'needs-input'])
+const stateStatusSchema = z.enum([
+  "draft",
+  "in-progress",
+  "failed",
+  "completed",
+  "needs-input",
+]);
+type StateStatus = z.infer<typeof stateStatusSchema>
 
 export interface State {
-  status: z.infer<typeof stateStatus>
+  status: StateStatus;
   subtasks: Array<Subtask>;
+  messages: Array<ModelMessage>;
 }
 
-export const StateUpdateSchema = z.union([
-  z.object({ type: z.literal('state'), to: stateStatus }),
-  z.object({ type: z.literal('subtask'), id: z.string() })
-])
-
 const statusUpdate = z.object({
-  type: 'state',
-   to: stateStatus
-})
+  type: z.literal("state"),
+  to: stateStatusSchema,
+});
 
 const subtaskUpdate = z.object({
-  type: 'subtask',
-  id: z.string()
-})
+  type: z.literal("subtask"),
+  id: z.string(),
+});
 
-const stateUpdateSchema = z.union([statusUpdate, subtaskUpdate])
-type StateUpdate = z.infer<typeof StateUpdateSchema>
+const StateUpdateSchema = z.union([statusUpdate, subtaskUpdate]);
+type StateUpdate = z.infer<typeof StateUpdateSchema>;
 
-export class AgentState {
+export class AgentState implements State {
   private static instance: AgentState | null = null;
-  private state: State;
 
-  protected messages: ModelMessage[] = []
+  status: StateStatus;
+  subtasks: Array<Subtask>;
+  messages: ModelMessage[] = [];
 
   private constructor(state: State) {
-    this.state = state;
+    this.status = state.status;
+    this.subtasks = state.subtasks;
   }
 
   static create(subtasks: Array<string>): void {
@@ -52,31 +57,38 @@ export class AgentState {
         label,
         completed: false,
       })),
+      messages: []
     });
   }
 
   private static get self(): AgentState {
     if (!AgentState.instance) {
-      throw new Error("AgentState not initialized. Call AgentState.create() first.");
+      throw new Error(
+        "AgentState not initialized. Call AgentState.create() first.",
+      );
     }
     return AgentState.instance;
   }
 
   static get current(): Readonly<State & { messages: ModelMessage[] }> {
-    return {... AgentState.self.state, messages: AgentState.self.messages};
+    return {
+      status: AgentState.self.status,
+      subtasks: AgentState.self.subtasks,
+      messages: AgentState.self.messages,
+    };
   }
 
   static get isInProgress(): boolean {
-    const { state } = AgentState.self;
-    if (state.subtasks.every((t) => t.completed)) {
+    const { status, subtasks } = AgentState.self;
+    if (subtasks.every((t) => t.completed)) {
       return false;
     }
-    return state.status === "in-progress";
+    return status === "in-progress";
   }
 
   static pushHistory(newMessages: Array<ModelMessage>) {
     const self = AgentState.self;
-    self.messages.push(...newMessages)
+    self.messages.push(...newMessages);
   }
 
   static apply(updates: Array<StateUpdate>): void {
@@ -84,10 +96,10 @@ export class AgentState {
     for (const update of updates) {
       switch (update.type) {
         case "state":
-          self.state = { ...self.state, status: update.to };
+          self.status = update.to;
           break;
         case "subtask": {
-          const subtask = self.state.subtasks.find((t) => t.id === update.id);
+          const subtask = self.subtasks.find((t) => t.id === update.id);
           if (subtask) {
             subtask.completed = true;
           }
