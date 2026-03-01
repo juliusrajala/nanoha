@@ -8,19 +8,30 @@ export interface Subtask {
   completed: boolean;
 }
 
+const stateStatus = z.enum(['draft', 'in-progress', 'failed', 'completed', 'needs-input'])
+
 export interface State {
-  status: "draft" | "in-progress" | "needs-input" | "completed" | "failed";
+  status: z.infer<typeof stateStatus>
   subtasks: Array<Subtask>;
 }
 
 export const StateUpdateSchema = z.union([
-  z.object({ type: z.literal('state'), to: z.enum(['failed', 'completed', 'needs-input', 'in-progress']) }),
+  z.object({ type: z.literal('state'), to: stateStatus }),
   z.object({ type: z.literal('subtask'), id: z.string() })
 ])
 
-type StateUpdate =
-  | { type: "state"; to: "failed" | "completed" | "needs-input" | "in-progress" }
-  | { type: "subtask"; id: string };
+const statusUpdate = z.object({
+  type: 'state',
+   to: stateStatus
+})
+
+const subtaskUpdate = z.object({
+  type: 'subtask',
+  id: z.string()
+})
+
+const stateUpdateSchema = z.union([statusUpdate, subtaskUpdate])
+type StateUpdate = z.infer<typeof StateUpdateSchema>
 
 export class AgentState {
   private static instance: AgentState | null = null;
