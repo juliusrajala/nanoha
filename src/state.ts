@@ -15,7 +15,7 @@ const stateStatusSchema = z.enum([
   "completed",
   "needs-input",
 ]);
-type StateStatus = z.infer<typeof stateStatusSchema>
+type StateStatus = z.infer<typeof stateStatusSchema>;
 
 export interface State {
   status: StateStatus;
@@ -57,7 +57,7 @@ export class AgentState implements State {
         label,
         completed: false,
       })),
-      messages: []
+      messages: [],
     });
   }
 
@@ -68,6 +68,10 @@ export class AgentState implements State {
       );
     }
     return AgentState.instance;
+  }
+
+  static get isInitialized(): boolean {
+    return AgentState.instance !== null;
   }
 
   static get current(): Readonly<State & { messages: ModelMessage[] }> {
