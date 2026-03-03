@@ -1,13 +1,13 @@
 import { planSubtasks, runAgent } from "./src/main";
-import { renderRoot } from "./src/tui/root";
-
+import { startApp} from "./src/tui/root";
 
 void async function main() {
   const args = Bun.argv.slice(2);
 
   // Start interactive terminal UI
   if (args.length === 0) {
-    return await renderRoot(runAgent)
+    // return await renderRoot(runAgent)
+    return startApp()
   }
 
   // Run with given flags

@@ -36,8 +36,13 @@ const subtaskUpdate = z.object({
 const StateUpdateSchema = z.union([statusUpdate, subtaskUpdate]);
 type StateUpdate = z.infer<typeof StateUpdateSchema>;
 
+type StateSnapshot = Readonly<State & { messages: ModelMessage[] }>;
+
+type StateListener = (state: StateSnapshot) => void;
+
 export class AgentState implements State {
   private static instance: AgentState | null = null;
+  private static listeners = new Set<StateListener>();
 
   status: StateStatus;
   subtasks: Array<Subtask>;
@@ -59,6 +64,7 @@ export class AgentState implements State {
       })),
       messages: [],
     });
+    AgentState.emit();
   }
 
   private static get self(): AgentState {
@@ -74,12 +80,32 @@ export class AgentState implements State {
     return AgentState.instance !== null;
   }
 
-  static get current(): Readonly<State & { messages: ModelMessage[] }> {
+  static get current(): StateSnapshot {
     return {
       status: AgentState.self.status,
       subtasks: AgentState.self.subtasks,
       messages: AgentState.self.messages,
     };
+  }
+
+  static subscribe(listener: StateListener): () => void {
+    AgentState.listeners.add(listener);
+    if (AgentState.isInitialized) {
+      listener(AgentState.current);
+    }
+    return () => {
+      AgentState.listeners.delete(listener);
+    };
+  }
+
+  private static emit(): void {
+    if (!AgentState.instance) {
+      return;
+    }
+    const snapshot = AgentState.current;
+    for (const listener of AgentState.listeners) {
+      listener(snapshot);
+    }
   }
 
   static get isInProgress(): boolean {
@@ -93,6 +119,7 @@ export class AgentState implements State {
   static pushHistory(newMessages: Array<ModelMessage>) {
     const self = AgentState.self;
     self.messages.push(...newMessages);
+    AgentState.emit();
   }
 
   static apply(updates: Array<StateUpdate>): void {
@@ -111,5 +138,6 @@ export class AgentState implements State {
         }
       }
     }
+    AgentState.emit();
   }
 }
