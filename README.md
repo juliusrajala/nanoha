@@ -2,6 +2,11 @@
 
 Nanoha is a compact TypeScript agent harness built on Bun and the Vercel AI SDK.
 
+## Requirements
+
+- Bun
+- An OpenAI API key in your environment
+
 ## Development
 
 Install dependencies:
@@ -10,7 +15,7 @@ Install dependencies:
 bun install
 ```
 
-Run the app locally with a prompt:
+Run the agent against a prompt:
 
 ```bash
 bun run index.ts "Describe the task you want the agent to do"
@@ -24,9 +29,25 @@ bun run index.ts
 
 ### Prompt development
 
-Prompt templates live in `src/agent/prompts.ts`. Update the system prompt there when iterating on agent behavior. The runtime injects the environment and file tree into the system prompt automatically (see `buildSystemPrompt`).
+Prompt templates live in `src/agent/prompts.ts`. Update the system prompt there when iterating on agent behavior. The runtime injects the current working directory and file tree into the system prompt automatically.
 
-This project was created using `bun init` in bun v1.2.22. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+## Evaluations
+
+The evaluation runner lives in `lib/eval/eval.ts` and can be used to check agent behavior against the built-in proofs.
+
+Run a specific evaluation by id:
+
+```bash
+bun run ./lib/eval/eval.ts <evaluation-id>
+```
+
+List available evaluation ids and descriptions:
+
+```bash
+bun run ./lib/eval/eval.ts
+```
+
+You can find the available evaluation cases in `lib/eval/proofs.json`.
 
 ## License
 
