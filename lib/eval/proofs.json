@@ -1,0 +1,11 @@
+[
+  {
+    "id": "search-for-files",
+    "prompt": "Do we have a chapter about development in the README.md",
+    "statements": ["The README.md contains a chapter about development."],
+    "_description": "Validates use of read directory and read file tools for simple requests.",
+    "toolUse": {
+      "readFile": 1
+    }
+  }
+]

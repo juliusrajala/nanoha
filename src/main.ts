@@ -1,84 +1,59 @@
-import { generateText } from "./llm/aiSdk";
-import { executeLoop } from "./core";
 import { getDirectoryContext } from "./config";
-import { buildPlanningPrompt, buildSummaryPrompt } from "./prompts";
-import { AgentState } from "./state";
 import {
+  createFileTool,
   createEditFileTool,
   createListFilesTool,
   createReadFileTool,
-  createUpdateStateTool,
 } from "./tools";
-
-function destructurePlan(response: string): Array<string> {
-  return response
-    .split("\n")
-    .map((line) =>
-      line
-        .trim()
-        .replace(/^[-*•\d.)\s]+/, "")
-        .trim(),
-    )
-    .filter(Boolean);
-}
-
-export async function planSubtasks(prompt: string): Promise<string[]> {
-  // Let's just generate these as text since it's about as fast as we can be.
-  const result = await generateText({
-    system: buildPlanningPrompt(),
-    prompt,
-  });
-  const subtasks = destructurePlan(result.text);
-
-  return subtasks;
-}
-
-async function summarize(prompt: string): Promise<string> {
-  const { status, subtasks, messages } = AgentState.current;
-
-  const result = await generateText({
-    system: buildSummaryPrompt(),
-    messages: [
-      ...messages,
-      {
-        role: "user",
-        content: `The user's original request was: "${prompt}"\nFinal status: ${status}\nSubtasks completed: ${subtasks.filter((t) => t.completed).length}/${subtasks.length}\n\nUsing the agent message history above, summarize what was done and answer the user's task.`,
-      },
-    ],
-  });
-
-  return result.text;
-}
+import { CodingAgent } from "./agent/agent";
+import type { AgentMessage } from "./agent/messages";
+import type { TextStreamPart } from "ai";
 
 interface Options {
-  plan: boolean;
-};
+  onlyPlan: boolean;
+}
 
-export async function runAgent(prompt: string, options: Partial<Options> = {}) {
-  const { plan } = options;
-  const directoryContext = await getDirectoryContext();
+interface AgentParams {
+  prompt: string;
+  handler?: (update: TextStreamPart<any>) => void;
+  options?: Partial<Options>;
+}
 
-  const subtasks = await planSubtasks(prompt);
-  AgentState.create(subtasks);
+export interface AgentSession {
+  run: (input: AgentParams) => Promise<unknown>;
+  getMessages: () => AgentMessage[];
+}
 
-  const editTools = {
+function buildTools(onlyPlan: boolean) {
+  const writeTools = {
+    createFile: createFileTool(),
     editFile: createEditFileTool(),
   };
 
   const readTools = {
-    updateState: createUpdateStateTool(),
     readFile: createReadFileTool(),
     listFiles: createListFilesTool(),
   };
 
-  await executeLoop({
-    plan: prompt,
-    subtasks,
-    tools: plan ? readTools : { ...readTools, ...editTools },
+  return onlyPlan ? readTools : { ...writeTools, ...readTools };
+}
+
+export async function createAgentSession(options: Partial<Options> = {}): Promise<AgentSession> {
+  const onlyPlan = Boolean(options.onlyPlan);
+  const directoryContext = await getDirectoryContext();
+  const tools = buildTools(onlyPlan);
+
+  const agent = new CodingAgent(tools, {
     projectContext: directoryContext,
   });
 
-  const summary = await summarize(prompt);
-  console.log(`\n[agent] ${summary}`);
-  return summary;
+  return {
+    run: ({ prompt, handler }) => agent.stream(prompt, handler),
+    getMessages: () => agent.getMessages(),
+  };
+}
+
+export async function runAgent({ prompt, options = {}, handler }: AgentParams) {
+  const session = await createAgentSession(options);
+  return await session.run({ prompt, handler });
 }

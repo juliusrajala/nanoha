@@ -12,7 +12,9 @@ export function createListFilesTool() {
       pattern: z
         .string()
         .optional()
-        .describe('Optional glob pattern to filter files, e.g. "**/*.md" for all markdown files. Defaults to "**/*" (all files recursively).'),
+        .describe(
+          'Optional glob pattern to filter files, e.g. "**/*.md" for all markdown files. Defaults to "**/*" (all files recursively).',
+        ),
     }),
     execute: async ({ directory, pattern }) => {
       const glob = new Glob(pattern ?? "**/*");

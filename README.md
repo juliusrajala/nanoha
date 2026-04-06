@@ -10,21 +10,21 @@ Install dependencies:
 bun install
 ```
 
-Run the app locally (expects a prompt argument):
+Run the app locally with a prompt:
 
 ```bash
 bun run index.ts "Describe the task you want the agent to do"
 ```
 
-If you run without a prompt, the process exits and prints:
+Run without a prompt to open the TUI:
 
-```text
-Usage: bun index.ts <prompt>
+```bash
+bun run index.ts
 ```
 
 ### Prompt development
 
-Prompt templates live in `src/prompts/index.ts`. Update the system/planning/summary prompts there when iterating on agent behavior. The runtime injects the environment and file tree into the system prompt automatically (see `buildSystemPrompt`).
+Prompt templates live in `src/agent/prompts.ts`. Update the system prompt there when iterating on agent behavior. The runtime injects the environment and file tree into the system prompt automatically (see `buildSystemPrompt`).
 
 This project was created using `bun init` in bun v1.2.22. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
 

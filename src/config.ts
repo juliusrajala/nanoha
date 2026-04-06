@@ -1,13 +1,6 @@
 import { Glob } from "bun";
 
-const EXCLUDED_PATTERNS = [
-  "node_modules/**",
-  ".git/**",
-  "bun.lock",
-  ".env*",
-  "*.pem",
-  "*.key",
-];
+const EXCLUDED_PATTERNS = ["node_modules/**", ".git/**", "bun.lock", ".env*", "*.pem", "*.key"];
 
 const excludeGlobs = EXCLUDED_PATTERNS.map((p) => new Glob(p));
 

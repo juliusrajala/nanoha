@@ -1,5 +1,6 @@
 import { tool } from "ai";
 import z from "zod";
+import { isExcluded } from "../config";
 
 export function createEditFileTool() {
   return tool({
@@ -11,6 +12,8 @@ export function createEditFileTool() {
       newText: z.string().describe("The text to replace it with."),
     }),
     execute: async ({ filePath, oldText, newText }) => {
+      if (isExcluded(filePath)) return "Error: access to this file is restricted.";
+
       const file = Bun.file(filePath);
 
       if (!(await file.exists())) return "Error: file does not exist.";
