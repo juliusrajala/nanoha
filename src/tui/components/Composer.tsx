@@ -35,6 +35,7 @@ export const Composer = forwardRef<
     <box border minHeight={composerHeight} height={composerHeight} flexShrink={0}>
       <textarea
         ref={ref}
+        padding={1}
         width="100%"
         height="100%"
         initialValue={draft}

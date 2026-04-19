@@ -1,6 +1,6 @@
-import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
 import type { EvalRunResult, Evaluation } from "../eval";
+import { getDefaultModel } from "../../../src/llm";
 
 export async function evaluateStatements(evaluation: Evaluation, result: EvalRunResult) {
   return await Promise.all(
@@ -13,7 +13,7 @@ export async function evaluateStatements(evaluation: Evaluation, result: EvalRun
 
 export async function judgeStatement(statement: string, result: EvalRunResult) {
   const { output } = await generateText({
-    model: openai("gpt-5.4-mini"),
+    model: getDefaultModel(),
     prompt: buildJudgePrompt(statement, result),
   });
 

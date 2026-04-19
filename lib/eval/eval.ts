@@ -25,14 +25,14 @@ const main = new Crust("eval")
   .args([
     {
       name: "evalId",
-      description: "The evaluation to run",
+      description: "The evaluation to run (omit for batch mode)",
       type: "string",
       require: false,
     },
   ])
   .run(async ({ args }) => {
     if (!args.evalId) {
-      printUsage();
+      await runAllEvals();
       return;
     }
 
@@ -102,6 +102,65 @@ async function executeEvaluation(
     output: output.trim(),
     toolCalls,
   };
+}
+
+async function runAllEvals() {
+  const results: Array<{
+    id: string;
+    passed: boolean;
+    judgments: Array<{ statement: string; passed: boolean; raw: string }>;
+  }> = [];
+
+  for (const evaluation of evaluations) {
+    const session = await createAgentSession();
+    const result = await executeEvaluation(session, evaluation.prompt);
+    const judgments = await evaluateStatements(evaluation, result);
+    const passed = judgments.every((j) => j.judgment);
+
+    results.push({
+      id: evaluation.id,
+      passed,
+      judgments: judgments.map((j) => ({
+        statement: j.statement,
+        passed: j.judgment,
+        raw: j.raw.trim(),
+      })),
+    });
+  }
+
+  const total = results.length;
+  const passed = results.filter((r) => r.passed).length;
+  const failed = total - passed;
+
+  const lines = [
+    "",
+    "═══════════════════════════════════════════════",
+    "  EVALUATION RESULTS",
+    "═══════════════════════════════════════════════",
+    "",
+    `Total: ${total} | Passed: ${passed} | Failed: ${failed}`,
+    `Score: ${Math.round((passed / total) * 100)}%`,
+    "",
+    "───────────────────────────────────────────────",
+    "  Per-eval breakdown:",
+    "───────────────────────────────────────────────",
+    "",
+  ];
+
+  for (const result of results) {
+    lines.push(`  ${result.passed ? "✅ PASS" : "❌ FAIL"} ${result.id}`);
+    for (const judgment of result.judgments) {
+      lines.push(`    ${judgment.passed ? "✅" : "❌"} "${judgment.statement}"`);
+      if (judgment.raw) {
+        lines.push(`       → ${judgment.raw}`);
+      }
+    }
+    lines.push("");
+  }
+
+  lines.push("═══════════════════════════════════════════════");
+
+  stdout.write(`${lines.join("\n")}\n`);
 }
 
 function indentBlock(value: string): string {

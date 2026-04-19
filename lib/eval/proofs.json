@@ -1,11 +1,164 @@
 [
   {
     "id": "search-for-files",
-    "prompt": "Do we have a chapter about development in the README.md",
-    "statements": ["The README.md contains a chapter about development."],
-    "_description": "Validates use of read directory and read file tools for simple requests.",
+    "prompt": "Do we have a chapter about development in the README.md?",
+    "statements": ["README.md contains information about development."],
+    "_description": "Validates use of readFile for simple content queries.",
     "toolUse": {
       "readFile": 1
+    }
+  },
+  {
+    "id": "readme-development",
+    "prompt": "What does the README say about running the app with a prompt?",
+    "statements": [
+      "The assistant read README.md to answer the question.",
+      "README.md explains how to run the app by passing a prompt to bun run index.ts."
+    ],
+    "_description": "Reads README.md and extracts specific information about running the app.",
+    "toolUse": {
+      "readFile": 1
+    }
+  },
+  {
+    "id": "list-files-in-src",
+    "prompt": "List all TypeScript files in the src/agent/ directory.",
+    "statements": [
+      "The assistant used listFiles to enumerate files.",
+      "The output lists TypeScript files in src/agent/."
+    ],
+    "_description": "Validates listFiles usage with a directory path.",
+    "toolUse": {
+      "listFiles": 1
+    }
+  },
+  {
+    "id": "create-simple-file",
+    "prompt": "Create a file at /tmp/eval-test-output.txt with the content 'Hello from eval'.",
+    "statements": [
+      "The assistant called createFile.",
+      "The file /tmp/eval-test-output.txt was created with the expected content."
+    ],
+    "_description": "Tests createFile tool with a simple write operation.",
+    "toolUse": {
+      "createFile": 1
+    }
+  },
+  {
+    "id": "edit-existing-file",
+    "prompt": "Add a line at the end of README.md that says '# Eval Testing' (only if it's not already there).",
+    "statements": [
+      "The assistant used editFile to modify README.md.",
+      "README.md now contains '# Eval Testing'."
+    ],
+    "_description": "Tests editFile on an existing file with idempotent behavior.",
+    "toolUse": {
+      "editFile": 1
+    }
+  },
+  {
+    "id": "multi-step-readme-and-list",
+    "prompt": "First check what sections exist in README.md, then list all files in src/tui/components/ and tell me which ones are React components (.tsx).",
+    "statements": [
+      "The assistant read README.md to find sections.",
+      "The assistant listed files in src/tui/components/.",
+      "The output identifies .tsx files in src/tui/components/."
+    ],
+    "_description": "Tests multi-step workflow: read a file, then list another directory.",
+    "toolUse": {
+      "readFile": 1,
+      "listFiles": 1
+    }
+  },
+  {
+    "id": "check-lsp-diagnostics",
+    "prompt": "Run diagnostics on src/main.ts and report any findings.",
+    "statements": [
+      "The assistant called lspDiagnostics on src/main.ts.",
+      "The output reports the diagnostic findings for src/main.ts."
+    ],
+    "_description": "Tests lspDiagnostics tool usage.",
+    "toolUse": {
+      "lspDiagnostics": 1
+    }
+  },
+  {
+    "id": "find-all-tsx-files",
+    "prompt": "List all .tsx files in the entire project recursively.",
+    "statements": [
+      "The assistant used listFiles with a pattern filter.",
+      "The output lists .tsx files across the project."
+    ],
+    "_description": "Tests listFiles with glob pattern for cross-directory search.",
+    "toolUse": {
+      "listFiles": 1
+    }
+  },
+  {
+    "id": "read-prompt-config",
+    "prompt": "What system prompt patterns are defined in src/agent/prompts.ts?",
+    "statements": [
+      "The assistant read src/agent/prompts.ts.",
+      "The output describes the prompt patterns or functions defined in prompts.ts."
+    ],
+    "_description": "Tests reading a source file and summarizing its contents.",
+    "toolUse": {
+      "readFile": 1
+    }
+  },
+  {
+    "id": "create-and-verify",
+    "prompt": "Create a file at /tmp/eval-verify.txt with the content 'Eval verification test'. Then read it back and confirm the content matches.",
+    "statements": [
+      "The assistant called createFile.",
+      "The assistant called readFile to verify the content.",
+      "The file content was verified to match 'Eval verification test'."
+    ],
+    "_description": "Tests create + read roundtrip for file operations.",
+    "toolUse": {
+      "createFile": 1,
+      "readFile": 1
+    }
+  },
+  {
+    "id": "config-summary",
+    "prompt": "Summarize the configuration options available in src/config.ts and src/config/llm.ts.",
+    "statements": [
+      "The assistant read src/config.ts.",
+      "The assistant read src/config/llm.ts.",
+      "The output summarizes configuration options from both files."
+    ],
+    "_description": "Tests reading multiple config files and synthesizing information.",
+    "toolUse": {
+      "readFile": 2
+    }
+  },
+  {
+    "id": "find-tui-components",
+    "prompt": "What React components are defined in the TUI? List them and describe what each one does.",
+    "statements": [
+      "The assistant listed files in src/tui/components/.",
+      "The assistant read at least one .tsx component file.",
+      "The output names the TUI components (Composer, MessagePane, StatusHeader, NanohaTui)."
+    ],
+    "_description": "Tests discovering and understanding a set of related components.",
+    "toolUse": {
+      "listFiles": 1,
+      "readFile": 1
+    }
+  },
+  {
+    "id": "fizzbuzz-lsp-and-run",
+    "prompt": "Run the TypeScript file lib/eval/mocks/fizzbuzz.ts using LSP diagnostics first to check for errors, then execute it and report the output.",
+    "statements": [
+      "The assistant called lspDiagnostics on lib/eval/mocks/fizzbuzz.ts.",
+      "The assistant called runCommand to execute the fizzbuzz program.",
+      "The output includes the fizzbuzz results (Fizz, Buzz, FizzBuzz, and numbers 1-100)."
+    ],
+    "_description": "Tests a realistic multi-step workflow: lint a file, then execute it.",
+    "toolUse": {
+      "lspDiagnostics": 1,
+      "runCommand": 1
     }
   }
 ]

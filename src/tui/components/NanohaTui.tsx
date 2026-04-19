@@ -2,11 +2,17 @@
 
 import type { TextareaRenderable } from "@opentui/core";
 import { useKeyboard, useRenderer } from "@opentui/react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AgentSession } from "../../main";
 import { Composer } from "./Composer";
 import { MessagePane } from "./MessagePane";
 import { StatusHeader } from "./StatusHeader";
+
+interface PendingApproval {
+  toolName: string;
+  command: string;
+  resolve: (approved: boolean) => void;
+}
 
 export function NanohaTui({ session }: { session: AgentSession }) {
   const renderer = useRenderer();
@@ -15,8 +21,30 @@ export function NanohaTui({ session }: { session: AgentSession }) {
   const [inputEpoch, setInputEpoch] = useState(0);
   const [status, setStatus] = useState("Ready");
   const [messages, setMessages] = useState(session.getMessages());
+  const [streamingText, setStreamingText] = useState("");
+  const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null);
   const textareaRef = useRef<TextareaRenderable | null>(null);
   const isRunningRef = useRef(false);
+  const runAbortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    session.setCommandApprovalHandler(async (request) => {
+      return await new Promise<boolean>((resolve) => {
+        setPendingApproval({
+          toolName: request.toolName,
+          command: formatApprovalCommand(request.input),
+          resolve,
+        });
+        setStatus("Awaiting command approval");
+      });
+    });
+
+    return () => {
+      runAbortControllerRef.current?.abort();
+      session.abort();
+      session.setCommandApprovalHandler(undefined);
+    };
+  }, [session]);
 
   const focusComposer = useCallback(() => {
     textareaRef.current?.focus();
@@ -31,10 +59,13 @@ export function NanohaTui({ session }: { session: AgentSession }) {
       setIsRunning(true);
       setDraft("");
       setStatus("Running...");
+      const abortController = new AbortController();
+      runAbortControllerRef.current = abortController;
 
       try {
         const runPromise = session.run({
           prompt: value,
+          signal: abortController.signal,
           handler: (update) => {
             switch (update.type) {
               case "tool-call":
@@ -45,11 +76,20 @@ export function NanohaTui({ session }: { session: AgentSession }) {
                 setStatus(`[tool done] ${update.toolName}`);
                 setMessages(session.getMessages());
                 break;
+              case "tool-approval-request":
+                setStatus("Awaiting command approval");
+                setMessages(session.getMessages());
+                break;
+              case "text-delta":
+                setStreamingText((current) => current + update.text);
+                break;
               case "text-end":
+                setStreamingText("");
                 setMessages(session.getMessages());
                 break;
               case "error":
               case "tool-error":
+                setStreamingText("");
                 setStatus("Error");
                 setMessages(session.getMessages());
                 break;
@@ -64,20 +104,44 @@ export function NanohaTui({ session }: { session: AgentSession }) {
         await runPromise;
         setMessages(session.getMessages());
         setStatus("Done");
+        setStreamingText("");
       } catch (error) {
-        setStatus(`Error: ${String(error)}`);
+        if (abortController.signal.aborted) {
+          setStatus("Cancelled");
+        } else {
+          setStatus(`Error: ${String(error)}`);
+        }
+        setStreamingText("");
       } finally {
         setDraft("");
         setInputEpoch((n) => n + 1);
         isRunningRef.current = false;
         setIsRunning(false);
+        if (runAbortControllerRef.current === abortController) {
+          runAbortControllerRef.current = null;
+        }
       }
     },
     [draft, session],
   );
 
   useKeyboard((key) => {
+    if (pendingApproval) {
+      if (key.name === "y") {
+        pendingApproval.resolve(true);
+        setPendingApproval(null);
+        setStatus("Command approved");
+      } else if (key.name === "n" || key.name === "escape") {
+        pendingApproval.resolve(false);
+        setPendingApproval(null);
+        setStatus("Command denied");
+      }
+      return;
+    }
+
     if (key.name === "escape") {
+      runAbortControllerRef.current?.abort();
+      session.abort();
       renderer.destroy();
     }
   });
@@ -92,18 +156,49 @@ export function NanohaTui({ session }: { session: AgentSession }) {
       onMouseDown={focusComposer}
     >
       <StatusHeader status={status} />
-      <MessagePane messages={messages} />
-      <Composer
-        key={`composer-${inputEpoch}`}
-        ref={textareaRef}
-        draft={draft}
-        isRunning={isRunning}
-        onChange={setDraft}
-        onSubmit={() => {
-          const value = textareaRef.current?.plainText ?? draft;
-          void submitPrompt(value);
-        }}
-      />
+      <MessagePane messages={messages} streamingText={streamingText} />
+      {pendingApproval ? (
+        <box
+          flexDirection="column"
+          borderStyle="single"
+          borderColor="#cc8800"
+          padding={1}
+          flexShrink={0}
+        >
+          <text fg="#fbbf24">Approve command?</text>
+          <text fg="#94a3b8">{pendingApproval.command}</text>
+          <text fg="#888888">Y yes N no</text>
+        </box>
+      ) : (
+        <Composer
+          key={`composer-${inputEpoch}`}
+          ref={textareaRef}
+          draft={draft}
+          isRunning={isRunning}
+          onChange={setDraft}
+          onSubmit={() => {
+            const value = textareaRef.current?.plainText ?? draft;
+            void submitPrompt(value);
+          }}
+        />
+      )}
     </box>
   );
+}
+
+function formatApprovalCommand(input: unknown): string {
+  if (
+    input &&
+    typeof input === "object" &&
+    "command" in input &&
+    typeof input.command === "string"
+  ) {
+    return input.command;
+  }
+
+  try {
+    return JSON.stringify(input, null, 2);
+  } catch {
+    return String(input);
+  }
 }

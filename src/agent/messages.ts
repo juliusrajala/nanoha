@@ -26,6 +26,12 @@ export type AgentMessage =
       output: unknown;
     })
   | (BaseMessage & {
+      type: "tool-approval-request";
+      toolName: string;
+      input: unknown;
+      approvalId: string;
+    })
+  | (BaseMessage & {
       type: "tool-error";
       error: unknown;
     })
@@ -87,6 +93,17 @@ export class AgentMessageHistory {
         type: "tool-result",
         toolName: shard.toolName,
         output: shard.output,
+      });
+      return;
+    }
+
+    if (shard.type === "tool-approval-request") {
+      this.messages.push({
+        ...this.nextMeta(),
+        type: "tool-approval-request",
+        toolName: shard.toolCall.toolName,
+        input: shard.toolCall.input,
+        approvalId: shard.approvalId,
       });
       return;
     }

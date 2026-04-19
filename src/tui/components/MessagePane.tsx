@@ -3,7 +3,13 @@
 import { useMemo } from "react";
 import type { AgentMessage } from "../../agent/messages";
 
-export function MessagePane({ messages }: { messages: AgentMessage[] }) {
+export function MessagePane({
+  messages,
+  streamingText = "",
+}: {
+  messages: AgentMessage[];
+  streamingText?: string;
+}) {
   const entries = useMemo(() => collapseMessages(messages), [messages]);
 
   return (
@@ -16,6 +22,12 @@ export function MessagePane({ messages }: { messages: AgentMessage[] }) {
           {entries.map((entry) => (
             <MessageItem key={entry.id} message={entry} />
           ))}
+          {streamingText.trim() && (
+            <text>
+              <span fg="#8b5cf6">| </span>
+              <span fg="#e5e7eb">{normalizeDisplayText(streamingText)}</span>
+            </text>
+          )}
         </box>
       </scrollbox>
     </box>
@@ -38,14 +50,14 @@ function MessageItem({ message }: { message: MessageEntry }) {
       return (
         <text>
           <span fg="#3b82f6">| </span>
-          <span fg="#e5e7eb">{message.text}</span>
+          <span fg="#e5e7eb">{normalizeDisplayText(message.text)}</span>
         </text>
       );
     case "assistant":
       return (
         <text>
           <span fg="#8b5cf6">| </span>
-          <span fg="#e5e7eb">{message.text}</span>
+          <span fg="#e5e7eb">{normalizeDisplayText(message.text)}</span>
         </text>
       );
     case "tool-call":
@@ -64,6 +76,15 @@ function MessageItem({ message }: { message: MessageEntry }) {
           <span fg="#6ee7b7">{message.toolName}</span>
           <br />
           <span fg="#94a3b8">{previewValue(message.output)}</span>
+        </text>
+      );
+    case "tool-approval-request":
+      return (
+        <text>
+          <span fg="#f59e0b">| </span>
+          <span fg="#fbbf24">approval {message.toolName}</span>
+          <br />
+          <span fg="#94a3b8">{previewValue(message.input)}</span>
         </text>
       );
     case "tool-activity":
@@ -101,6 +122,16 @@ function collapseMessages(messages: AgentMessage[]): MessageEntry[] {
   for (let index = 0; index < messages.length; index++) {
     const message = messages[index];
     const nextMessage = messages[index + 1];
+
+    if (
+      message?.type === "tool-call" &&
+      nextMessage?.type === "tool-approval-request" &&
+      nextMessage.toolName === message.toolName
+    ) {
+      entries.push(message);
+      index += 1;
+      continue;
+    }
 
     if (
       message?.type === "tool-call" &&
@@ -142,4 +173,8 @@ function pretty(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+function normalizeDisplayText(value: string): string {
+  return value.replace(/^\s*\n+/, "");
 }
