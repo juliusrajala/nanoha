@@ -12,7 +12,7 @@ export interface Evaluation {
   id: string;
   prompt: string;
   statements: string[];
-  toolUse?: Record<string, number>;
+  toolUse?: Record<string, number | undefined>;
   options?: Partial<RunOptions>;
   _description: string;
 }
@@ -91,7 +91,7 @@ async function executeEvaluation(
 
   await session.run({
     prompt,
-    handler: (part: TextStreamPart<any>) => {
+    subscriber: (part: TextStreamPart<any>) => {
       switch (part.type) {
         case "text-delta":
           output += part.text;

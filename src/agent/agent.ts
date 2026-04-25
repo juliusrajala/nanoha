@@ -25,12 +25,16 @@ interface StreamOptions {
   signal?: AbortSignal;
 }
 
+export type AgentStatus = "idle" | "running" | "awaiting-approval";
+
 export class CodingAgent {
   private history = new AgentMessageHistory();
   private messages: ModelMessage[] = [];
   private instructions: string;
   private tools: ToolSet;
   private requestToolApproval?: AgentOptions["requestToolApproval"];
+
+  protected status: AgentStatus = "idle";
 
   constructor(tools: ToolSet, options: AgentOptions) {
     this.instructions = buildSystemPrompt(options.projectContext);
@@ -42,7 +46,7 @@ export class CodingAgent {
     return this.history.getAll();
   }
 
-  async stream(prompt: string, handler?: StreamHandler, options: StreamOptions = {}) {
+  async stream(prompt: string, handler: StreamHandler, options: StreamOptions = {}) {
     this.history.addUser(prompt);
     this.messages.push({ role: "user", content: prompt });
 
@@ -58,7 +62,9 @@ export class CodingAgent {
         abortSignal: options.signal,
       });
 
-      let currentAssistantMessage = "";
+      // We initialize a streamable message.
+      let streamableAssistantMessage: string = "";
+
       const approvalRequests: Array<{
         approvalId: string;
         toolName: string;
@@ -66,23 +72,24 @@ export class CodingAgent {
       }> = [];
 
       for await (const shard of result.fullStream) {
+        // Pass streamed output to the handler.
         if (handler) {
           handler(shard);
         }
 
         if (shard.type === "text-start") {
-          currentAssistantMessage = "";
+          streamableAssistantMessage = "";
         }
 
         if (shard.type === "text-delta") {
-          currentAssistantMessage += shard.text;
+          streamableAssistantMessage += shard.text;
         }
 
         if (shard.type === "text-end") {
-          if (currentAssistantMessage.trim()) {
-            this.history.addAssistant(currentAssistantMessage);
+          if (streamableAssistantMessage.trim()) {
+            this.history.addAssistant(streamableAssistantMessage);
           }
-          currentAssistantMessage = "";
+          streamableAssistantMessage = "";
         }
 
         if (shard.type === "tool-approval-request") {
@@ -96,8 +103,8 @@ export class CodingAgent {
         this.history.addFromShard(shard);
       }
 
-      if (currentAssistantMessage.trim()) {
-        this.history.addAssistant(currentAssistantMessage);
+      if (streamableAssistantMessage.trim()) {
+        this.history.addAssistant(streamableAssistantMessage);
       }
 
       const response = await result.response;
