@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import type { AgentMessage } from "../../agent/messages";
+import { syntaxStyle } from "../styles";
 
 export function MessagePane({
   messages,
@@ -23,10 +24,7 @@ export function MessagePane({
             <MessageItem key={entry.id} message={entry} />
           ))}
           {streamingText.trim() && (
-            <text>
-              <span fg="#8b5cf6">| </span>
-              <span fg="#e5e7eb">{normalizeDisplayText(streamingText)}</span>
-            </text>
+            <MessageText roleColor="#8b5cf6" text={streamingText} streaming />
           )}
         </box>
       </scrollbox>
@@ -47,19 +45,9 @@ type MessageEntry =
 function MessageItem({ message }: { message: MessageEntry }) {
   switch (message.type) {
     case "user":
-      return (
-        <text>
-          <span fg="#3b82f6">| </span>
-          <span fg="#e5e7eb">{normalizeDisplayText(message.text)}</span>
-        </text>
-      );
+      return <MessageText roleColor="#3b82f6" text={message.text} />;
     case "assistant":
-      return (
-        <text>
-          <span fg="#8b5cf6">| </span>
-          <span fg="#e5e7eb">{normalizeDisplayText(message.text)}</span>
-        </text>
-      );
+      return <MessageText roleColor="#8b5cf6" text={message.text} />;
     case "tool-call":
       return (
         <text>
@@ -155,6 +143,31 @@ function collapseMessages(messages: AgentMessage[]): MessageEntry[] {
   }
 
   return entries;
+}
+
+function MessageText({
+  roleColor,
+  text,
+  streaming = false,
+}: {
+  roleColor: string;
+  text: string;
+  streaming?: boolean;
+}) {
+  return (
+    <box flexDirection="row" alignItems="flex-start" width="100%">
+      <text>
+        <span fg={roleColor}>| </span>
+      </text>
+      <box flexGrow={1} flexShrink={1} minWidth={0}>
+        <markdown
+          content={normalizeDisplayText(text)}
+          syntaxStyle={syntaxStyle}
+          streaming={streaming}
+        />
+      </box>
+    </box>
+  );
 }
 
 function previewValue(value: unknown): string {

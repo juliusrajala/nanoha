@@ -127,5 +127,3 @@ Contributions are welcome. If you're helping out, a good change usually includes
 ## License
 
 Copyright © 2026 Julius Rajala. Licensed under the MIT License.
-
-
