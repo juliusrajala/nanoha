@@ -2,22 +2,20 @@
 
 import type { TextareaRenderable } from "@opentui/core";
 import { useTerminalDimensions } from "@opentui/react";
-import { forwardRef, useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 const MIN_COMPOSER_LINES = 2;
 const MAX_COMPOSER_LINES = 12;
 const COMPOSER_BORDER_ROWS = 2;
 
-export const Composer = forwardRef<
-  TextareaRenderable,
-  {
-    draft: string;
-    isRunning: boolean;
-    onChange: (value: string) => void;
-    onSubmit: () => void;
-  }
->(function Composer({ draft, isRunning, onChange, onSubmit }, ref) {
+type Props = {
+  draft: string;
+  isRunning: boolean;
+  onSubmit: (text: string) => void;
+};
+export function Composer({ draft, isRunning, onSubmit }: Props) {
   const { width: terminalWidth } = useTerminalDimensions();
+  const ref = useRef<TextareaRenderable>(null);
 
   const composerHeight = useMemo(
     () =>
@@ -38,14 +36,14 @@ export const Composer = forwardRef<
         padding={1}
         width="100%"
         height="100%"
-        initialValue={draft}
         wrapMode="word"
         focused
-        onContentChange={() => {
-          onChange((ref as React.RefObject<TextareaRenderable | null>).current?.plainText ?? "");
-        }}
         onSubmit={() => {
-          onSubmit();
+          if (ref.current) {
+            const value = ref.current.plainText;
+            onSubmit(value);
+            ref.current.clear();
+          }
         }}
         keyBindings={[
           { name: "return", action: "submit" },
@@ -53,11 +51,11 @@ export const Composer = forwardRef<
           { name: "return", shift: true, action: "newline" },
           { name: "enter", shift: true, action: "newline" },
         ]}
-        placeholder={isRunning ? "Agent is running..." : "What would you like to build today?"}
+        placeholder={isRunning ? "Agent is running..." : "Should we build something?"}
       />
     </box>
   );
-});
+}
 
 function getComposerHeight({
   text,

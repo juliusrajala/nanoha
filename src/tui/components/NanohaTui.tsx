@@ -51,7 +51,7 @@ export function NanohaTui({ session }: { session: AgentSession }) {
   }, []);
 
   const submitPrompt = useCallback(
-    async (submitted?: string) => {
+    async (submitted: string) => {
       const value = (submitted ?? draft).trim();
       if (!value || isRunningRef.current) return;
 
@@ -66,7 +66,7 @@ export function NanohaTui({ session }: { session: AgentSession }) {
         const runPromise = session.run({
           prompt: value,
           signal: abortController.signal,
-          handler: (update) => {
+          subscriber: (update) => {
             switch (update.type) {
               case "tool-call":
                 setStatus(`[tool] ${update.toolName}`);
@@ -172,12 +172,9 @@ export function NanohaTui({ session }: { session: AgentSession }) {
       ) : (
         <Composer
           key={`composer-${inputEpoch}`}
-          ref={textareaRef}
           draft={draft}
           isRunning={isRunning}
-          onChange={setDraft}
-          onSubmit={() => {
-            const value = textareaRef.current?.plainText ?? draft;
+          onSubmit={(value) => {
             void submitPrompt(value);
           }}
         />

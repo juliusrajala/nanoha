@@ -10,7 +10,7 @@ function preview(value: unknown): string {
   return compact.length > 160 ? `${compact.slice(0, 159)}...` : compact;
 }
 
-export function cliStreamHandler(options: RunOptions) {
+export function subscribeCli(options: RunOptions) {
   const { verbose } = options;
   return (update: TextStreamPart<any>) => {
     switch (update.type) {

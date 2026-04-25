@@ -11,10 +11,11 @@ import { CodingAgent } from "./agent/agent";
 import type { AgentMessage } from "./agent/messages";
 import type { TextStreamPart } from "ai";
 import type { CommandApprovalHandler, RunOptions } from "./types";
+import { subscribeCli } from "./cli/streamHandler";
 
 interface AgentParams {
   prompt: string;
-  handler?: (update: TextStreamPart<any>) => void;
+  subscriber?: (update: TextStreamPart<any>) => void;
   signal?: AbortSignal;
 }
 
@@ -42,7 +43,7 @@ function buildTools(onlyPlan: boolean, yolo: boolean) {
 }
 
 export async function createAgentSession(options: RunOptions): Promise<AgentSession> {
-  const { onlyPlan, yolo, verbose } = options;
+  const { onlyPlan, yolo } = options;
   const directoryContext = await getDirectoryContext();
   const tools = buildTools(onlyPlan, yolo);
 
@@ -60,7 +61,11 @@ export async function createAgentSession(options: RunOptions): Promise<AgentSess
   let activeController: AbortController | undefined;
 
   return {
-    run: async ({ prompt, handler, signal }) => {
+    run: async (params) => {
+      // Register the requested listener, or default to stdout
+      const subscriber = params.subscriber ?? subscribeCli(options);
+      const { prompt, signal } = params;
+
       // Kill active session if one exists.
       if (activeController) {
         activeController?.abort();
@@ -78,7 +83,7 @@ export async function createAgentSession(options: RunOptions): Promise<AgentSess
       }
 
       try {
-        return await agent.stream(prompt, handler, {
+        return await agent.stream(prompt, subscriber, {
           signal: controller.signal,
         });
       } finally {
@@ -93,9 +98,4 @@ export async function createAgentSession(options: RunOptions): Promise<AgentSess
     },
     abort: () => activeController?.abort(),
   };
-}
-
-export async function runAgent({ prompt, handler, signal }: AgentParams, options: RunOptions) {
-  const session = await createAgentSession(options);
-  return await session.run({ prompt, handler, signal });
 }

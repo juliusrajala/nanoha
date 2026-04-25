@@ -1,7 +1,7 @@
 import { Crust } from "@crustjs/core";
 import { createAgentSession } from "./src/main";
 import { renderRoot } from "./src/tui/root";
-import { cliStreamHandler, requestCliApproval } from "src/cli/streamHandler";
+import { requestCliApproval } from "src/cli/streamHandler";
 
 const main = new Crust("nanoha")
   .meta({ description: "Nanoha Agent Harness" })
@@ -58,11 +58,6 @@ const main = new Crust("nanoha")
 
     await session.run({
       prompt,
-      handler: cliStreamHandler({
-        yolo,
-        onlyPlan,
-        verbose,
-      }),
     });
   });
 
