@@ -10,7 +10,7 @@ import { buildSystemPrompt } from "./prompts";
 import { AgentMessageHistory, type AgentMessage } from "./messages";
 import { getDefaultModel } from "../llm";
 
-interface Options {
+interface AgentOptions {
   projectContext: string;
   requestToolApproval?: (request: {
     approvalId: string;
@@ -30,9 +30,9 @@ export class CodingAgent {
   private messages: ModelMessage[] = [];
   private instructions: string;
   private tools: ToolSet;
-  private requestToolApproval?: Options["requestToolApproval"];
+  private requestToolApproval?: AgentOptions["requestToolApproval"];
 
-  constructor(tools: ToolSet, options: Options) {
+  constructor(tools: ToolSet, options: AgentOptions) {
     this.instructions = buildSystemPrompt(options.projectContext);
     this.tools = tools;
     this.requestToolApproval = options.requestToolApproval;
@@ -59,9 +59,17 @@ export class CodingAgent {
       });
 
       let currentAssistantMessage = "";
-      const approvalRequests: Array<{ approvalId: string; toolName: string; input: unknown }> = [];
+      const approvalRequests: Array<{
+        approvalId: string;
+        toolName: string;
+        input: unknown;
+      }> = [];
 
       for await (const shard of result.fullStream) {
+        if (handler) {
+          handler(shard);
+        }
+
         if (shard.type === "text-start") {
           currentAssistantMessage = "";
         }
@@ -86,7 +94,6 @@ export class CodingAgent {
         }
 
         this.history.addFromShard(shard);
-        handler?.(shard as TextStreamPart<any>);
       }
 
       if (currentAssistantMessage.trim()) {

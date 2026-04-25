@@ -1,3 +1,5 @@
+# Agent Guidelines
+
 Default to using Bun instead of Node.js.
 
 - Use `bun <file>` instead of `node <file>` or `ts-node <file>`
@@ -5,7 +7,7 @@ Default to using Bun instead of Node.js.
 - Use `bun build <file.html|file.ts|file.css>` instead of `webpack` or `esbuild`
 - Use `bun install` instead of `npm install` or `yarn install` or `pnpm install`
 - Use `bun run <script>` instead of `npm run <script>` or `yarn run <script>` or `pnpm run <script>`
-- Bun automatically loads .env, so don't use dotenv.
+- Bun automatically loads `.env`, so don't use dotenv.
 
 ## APIs
 
@@ -14,8 +16,8 @@ Default to using Bun instead of Node.js.
 - `Bun.redis` for Redis. Don't use `ioredis`.
 - `Bun.sql` for Postgres. Don't use `pg` or `postgres.js`.
 - `WebSocket` is built-in. Don't use `ws`.
-- Prefer `Bun.file` over `node:fs`'s readFile/writeFile
-- Bun.$`ls` instead of execa.
+- Prefer `Bun.file` over `node:fs`'s `readFile`/`writeFile`.
+- Use `Bun.$` instead of `execa`.
 
 ## Testing
 
@@ -31,12 +33,12 @@ test("hello world", () => {
 
 ## Frontend
 
-Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, Tailwind.
+Use HTML imports with `Bun.serve()`. Don't use `vite`. HTML imports fully support React, CSS, and Tailwind.
 
 Server:
 
 ```ts#index.ts
-import index from "./index.html"
+import index from "./index.html";
 
 Bun.serve({
   routes: {
@@ -47,7 +49,6 @@ Bun.serve({
       },
     },
   },
-  // optional websocket support
   websocket: {
     open: (ws) => {
       ws.send("Hello, world!");
@@ -55,18 +56,18 @@ Bun.serve({
     message: (ws, message) => {
       ws.send(message);
     },
-    close: (ws) => {
+    close: () => {
       // handle close
-    }
+    },
   },
   development: {
     hmr: true,
     console: true,
-  }
-})
+  },
+});
 ```
 
-HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will transpile & bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle.
+HTML files can import `.tsx`, `.jsx`, or `.js` directly and Bun's bundler will transpile and bundle automatically. `<link>` tags can point to stylesheets and Bun's CSS bundler will bundle them.
 
 ```html#index.html
 <html>
@@ -81,11 +82,9 @@ With the following `frontend.tsx`:
 
 ```tsx#frontend.tsx
 import React from "react";
-
-// import .css files directly and it works
-import './index.css';
-
 import { createRoot } from "react-dom/client";
+
+import "./index.css";
 
 const root = createRoot(document.body);
 
@@ -96,7 +95,7 @@ export default function Frontend() {
 root.render(<Frontend />);
 ```
 
-Then, run index.ts
+Then run:
 
 ```sh
 bun --hot ./index.ts

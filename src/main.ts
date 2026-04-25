@@ -10,18 +10,7 @@ import {
 import { CodingAgent } from "./agent/agent";
 import type { AgentMessage } from "./agent/messages";
 import type { TextStreamPart } from "ai";
-
-export type CommandApprovalHandler = (request: {
-  approvalId: string;
-  toolName: string;
-  input: unknown;
-}) => Promise<boolean>;
-
-interface Options {
-  onlyPlan: boolean;
-  yolo: boolean;
-  commandApprovalHandler?: CommandApprovalHandler;
-}
+import type { CommandApprovalHandler, RunOptions } from "./types";
 
 interface AgentParams {
   prompt: string;
@@ -52,11 +41,11 @@ function buildTools(onlyPlan: boolean, yolo: boolean) {
   return onlyPlan ? readTools : { ...writeTools, ...readTools };
 }
 
-export async function createAgentSession(options: Partial<Options> = {}): Promise<AgentSession> {
-  const onlyPlan = Boolean(options.onlyPlan);
-  const yolo = Boolean(options.yolo);
+export async function createAgentSession(options: RunOptions): Promise<AgentSession> {
+  const { onlyPlan, yolo, verbose } = options;
   const directoryContext = await getDirectoryContext();
   const tools = buildTools(onlyPlan, yolo);
+
   let commandApprovalHandler = options.commandApprovalHandler;
 
   const agent = new CodingAgent(tools, {
@@ -67,11 +56,16 @@ export async function createAgentSession(options: Partial<Options> = {}): Promis
       return await commandApprovalHandler(request);
     },
   });
+
   let activeController: AbortController | undefined;
 
   return {
     run: async ({ prompt, handler, signal }) => {
-      activeController?.abort();
+      // Kill active session if one exists.
+      if (activeController) {
+        activeController?.abort();
+      }
+
       const controller = new AbortController();
       activeController = controller;
 
@@ -84,7 +78,9 @@ export async function createAgentSession(options: Partial<Options> = {}): Promis
       }
 
       try {
-        return await agent.stream(prompt, handler, { signal: controller.signal });
+        return await agent.stream(prompt, handler, {
+          signal: controller.signal,
+        });
       } finally {
         if (activeController === controller) {
           activeController = undefined;
@@ -99,10 +95,7 @@ export async function createAgentSession(options: Partial<Options> = {}): Promis
   };
 }
 
-export async function runAgent(
-  { prompt, handler, signal }: AgentParams,
-  options: Partial<Options> = {},
-) {
+export async function runAgent({ prompt, handler, signal }: AgentParams, options: RunOptions) {
   const session = await createAgentSession(options);
   return await session.run({ prompt, handler, signal });
 }

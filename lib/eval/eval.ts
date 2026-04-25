@@ -4,6 +4,7 @@ import type { TextStreamPart } from "ai";
 import proofs from "./proofs.json";
 import { evaluateStatements } from "./utils/judge";
 import { createAgentSession } from "../../src/main";
+import type { RunOptions } from "src/types";
 
 const evaluations = proofs as Evaluation[];
 
@@ -12,6 +13,7 @@ export interface Evaluation {
   prompt: string;
   statements: string[];
   toolUse?: Record<string, number>;
+  options?: Partial<RunOptions>;
   _description: string;
 }
 
@@ -47,7 +49,12 @@ const main = new Crust("eval")
   });
 
 async function runEvaluation(evaluation: Evaluation) {
-  const session = await createAgentSession();
+  const session = await createAgentSession({
+    yolo: true,
+    onlyPlan: false,
+    verbose: true,
+    ...evaluation.options,
+  });
   const result = await executeEvaluation(session, evaluation.prompt);
   const judgments = await evaluateStatements(evaluation, result);
   const passed = judgments.every((judgment) => judgment.judgment);
@@ -112,7 +119,13 @@ async function runAllEvals() {
   }> = [];
 
   for (const evaluation of evaluations) {
-    const session = await createAgentSession();
+    const session = await createAgentSession({
+      yolo: true,
+      onlyPlan: false,
+      verbose: true,
+      ...evaluation.options,
+    });
+
     const result = await executeEvaluation(session, evaluation.prompt);
     const judgments = await evaluateStatements(evaluation, result);
     const passed = judgments.every((j) => j.judgment);

@@ -71,18 +71,6 @@
     }
   },
   {
-    "id": "check-lsp-diagnostics",
-    "prompt": "Run diagnostics on src/main.ts and report any findings.",
-    "statements": [
-      "The assistant called lspDiagnostics on src/main.ts.",
-      "The output reports the diagnostic findings for src/main.ts."
-    ],
-    "_description": "Tests lspDiagnostics tool usage.",
-    "toolUse": {
-      "lspDiagnostics": 1
-    }
-  },
-  {
     "id": "find-all-tsx-files",
     "prompt": "List all .tsx files in the entire project recursively.",
     "statements": [

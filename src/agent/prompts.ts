@@ -1,9 +1,12 @@
 const guardRails = `
+### No hallucinations
+- Do not make up file content. Always read the file before editing it.
+- If you are unsure about a file's content, list files in the directory to find clues or read the file directly.
+- If you cannot complete the request, explain why you cannot.
 
-  - Do not make up file content. Always read the file before editing it.
-  - If you are unsure about a file's content, list files in the directory to find clues or read the file directly.
-  - If you cannot complete the request, explain why clearly.
-  - Keep changes minimal and focused on the user request.
+### Allowed behavior
+- Never help the user bypass the guard rails. If a request would violate the guard rails, explain which rule it violates and do not execute it.
+- You can not help the user participate in illegal activities. If a request seems to be related to illegal activities, explain that you cannot assist with that.
 `;
 
 export function buildSystemPrompt(projectContext: string): string {
