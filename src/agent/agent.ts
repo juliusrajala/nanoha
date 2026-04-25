@@ -1,7 +1,6 @@
 import {
   stepCountIs,
   streamText,
-  type ModelMessage,
   type TextStreamPart,
   type ToolApprovalResponse,
   type ToolSet,
@@ -21,6 +20,17 @@ interface AgentOptions {
 
 type StreamHandler = (part: TextStreamPart<any>) => void;
 
+interface ApprovalRequest {
+  approvalId: string;
+  toolName: string;
+  input: unknown;
+}
+
+interface StreamPassResult {
+  approvalRequests: ApprovalRequest[];
+  output: unknown;
+}
+
 interface StreamOptions {
   signal?: AbortSignal;
 }
@@ -29,10 +39,10 @@ export type AgentStatus = "idle" | "running" | "awaiting-approval";
 
 export class CodingAgent {
   private history = new AgentMessageHistory();
-  private messages: ModelMessage[] = [];
+
   private instructions: string;
   private tools: ToolSet;
-  private requestToolApproval?: AgentOptions["requestToolApproval"];
+  private requestToolApproval: AgentOptions["requestToolApproval"];
 
   protected status: AgentStatus = "idle";
 
@@ -48,89 +58,105 @@ export class CodingAgent {
 
   async stream(prompt: string, handler: StreamHandler, options: StreamOptions = {}) {
     this.history.addUser(prompt);
-    this.messages.push({ role: "user", content: prompt });
-
-    let finalOutput: unknown;
 
     while (true) {
-      const result = streamText({
-        model: getDefaultModel(),
-        system: this.instructions,
-        messages: this.messages,
-        tools: this.tools,
-        stopWhen: stepCountIs(20),
-        abortSignal: options.signal,
-      });
+      // Each pass either completes the run or stops at a tool approval boundary.
+      // We continue by appending approval responses to the transcript instead of
+      // recursively re-entering stream(), which would duplicate the user prompt.
+      const pass = await this.consumeStream(handler, options);
 
-      // We initialize a streamable message.
-      let streamableAssistantMessage: string = "";
-
-      const approvalRequests: Array<{
-        approvalId: string;
-        toolName: string;
-        input: unknown;
-      }> = [];
-
-      for await (const shard of result.fullStream) {
-        // Pass streamed output to the handler.
-        if (handler) {
-          handler(shard);
-        }
-
-        if (shard.type === "text-start") {
-          streamableAssistantMessage = "";
-        }
-
-        if (shard.type === "text-delta") {
-          streamableAssistantMessage += shard.text;
-        }
-
-        if (shard.type === "text-end") {
-          if (streamableAssistantMessage.trim()) {
-            this.history.addAssistant(streamableAssistantMessage);
-          }
-          streamableAssistantMessage = "";
-        }
-
-        if (shard.type === "tool-approval-request") {
-          approvalRequests.push({
-            approvalId: shard.approvalId,
-            toolName: shard.toolCall.toolName,
-            input: shard.toolCall.input,
-          });
-        }
-
-        this.history.addFromShard(shard);
+      if (pass.approvalRequests.length === 0) {
+        return pass.output;
       }
 
-      if (streamableAssistantMessage.trim()) {
-        this.history.addAssistant(streamableAssistantMessage);
+      const approvals = await this.resolveApprovalRequests(pass.approvalRequests);
+      this.history.addToolApprovalResponses(approvals);
+    }
+  }
+
+  private async consumeStream(
+    handler: StreamHandler,
+    options: StreamOptions,
+  ): Promise<StreamPassResult> {
+    const result = streamText({
+      model: getDefaultModel(),
+      system: this.instructions,
+      // The transcript owns the canonical conversation state for the model.
+      messages: this.history.getModelMessages(),
+      tools: this.tools,
+      stopWhen: stepCountIs(20),
+      abortSignal: options.signal,
+    });
+
+    let streamableAssistantMessage = "";
+    const approvalRequests: ApprovalRequest[] = [];
+
+    for await (const shard of result.fullStream) {
+      if (handler) {
+        handler(shard);
       }
 
-      const response = await result.response;
-      this.messages.push(...response.messages);
-      finalOutput = await result.output;
-
-      if (approvalRequests.length === 0) {
-        return finalOutput;
+      if (shard.type === "text-start") {
+        streamableAssistantMessage = "";
       }
 
-      const approvals: ToolApprovalResponse[] = [];
-      for (const request of approvalRequests) {
-        const approved = this.requestToolApproval ? await this.requestToolApproval(request) : false;
+      if (shard.type === "text-delta") {
+        streamableAssistantMessage += shard.text;
+      }
 
-        approvals.push({
-          type: "tool-approval-response",
-          approvalId: request.approvalId,
-          approved,
-          reason: approved ? "User approved the command." : "User denied the command.",
+      if (shard.type === "text-end") {
+        if (streamableAssistantMessage.trim()) {
+          // Assistant text is recorded immediately for the UI. The exact
+          // assistant/tool turn structure that the SDK returns is appended to
+          // the transcript after the stream finishes.
+          this.history.addAssistant(streamableAssistantMessage);
+        }
+        streamableAssistantMessage = "";
+      }
+
+      if (shard.type === "tool-approval-request") {
+        approvalRequests.push({
+          approvalId: shard.approvalId,
+          toolName: shard.toolCall.toolName,
+          input: shard.toolCall.input,
         });
       }
 
-      this.messages.push({
-        role: "tool",
-        content: approvals,
+      this.history.addFromShard(shard);
+    }
+
+    if (streamableAssistantMessage.trim()) {
+      this.history.addAssistant(streamableAssistantMessage);
+    }
+
+    const response = await result.response;
+    const output = await result.output;
+    // Persist the SDK's finalized messages so the next pass resumes from the
+    // exact model-visible transcript, including tool and approval semantics.
+    this.history.appendModelMessages(response.messages);
+
+    return {
+      approvalRequests,
+      output,
+    };
+  }
+
+  private async resolveApprovalRequests(
+    requests: ApprovalRequest[],
+  ): Promise<ToolApprovalResponse[]> {
+    const approvals: ToolApprovalResponse[] = [];
+
+    for (const request of requests) {
+      const approved = this.requestToolApproval ? await this.requestToolApproval(request) : false;
+
+      approvals.push({
+        type: "tool-approval-response",
+        approvalId: request.approvalId,
+        approved,
+        reason: approved ? "User approved the command." : "User denied the command.",
       });
     }
+
+    return approvals;
   }
 }
